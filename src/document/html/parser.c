@@ -793,6 +793,7 @@ init_html_parser(struct uri *uri, struct document_options *options,
 	format.style = options->default_style;
 	format.color.clink = options->default_color.link;
 	format.color.vlink = options->default_color.vlink;
+    format.color.linknumber = options->default_color.linknumber;
 #ifdef CONFIG_BOOKMARKS
 	format.color.bookmark_link = options->default_color.bookmark_link;
 #endif

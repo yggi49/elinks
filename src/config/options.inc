@@ -597,6 +597,10 @@ static struct option_info config_options_info[] = {
 		"vlink", 0, "#ffff00",
 		N_("Default visited link color.")),
 
+    INIT_OPT_COLOR("document.colors", N_("Link number color"),
+        "linknumber", 0, "gray60",
+        N_("Default color for link numbers.")),
+
 	INIT_OPT_COLOR("document.colors", N_("Image-link color"),
 		"image", 0, "darkolivegreen",
 		N_("Default image link color.")),

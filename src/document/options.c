@@ -41,6 +41,7 @@ init_document_options(struct session *ses, struct document_options *doo)
 	doo->default_style.color.background = get_opt_color("document.colors.background", ses);
 	doo->default_color.link = get_opt_color("document.colors.link", ses);
 	doo->default_color.vlink = get_opt_color("document.colors.vlink", ses);
+	doo->default_color.linknumber = get_opt_color("document.colors.linknumber", ses);
 #ifdef CONFIG_BOOKMARKS
 	doo->default_color.bookmark_link = get_opt_color("document.colors.bookmark", ses);
 #endif

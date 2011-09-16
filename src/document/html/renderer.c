@@ -1510,11 +1510,14 @@ put_link_number(struct html_context *html_context)
 	unsigned char *fl = format.link;
 	unsigned char *ft = format.target;
 	unsigned char *fi = format.image;
+    struct text_style old_style = format.style;
 	struct form_control *ff = format.form;
 	int slen = 0;
 
 	format.link = format.target = format.image = NULL;
 	format.form = NULL;
+    format.style.attr &= ~AT_BOLD;
+    format.style.color.foreground = format.color.linknumber;
 
 	s[slen++] = '[';
 	ulongcat(s, &slen, part->link_num, sizeof(s) - 3, 0);
@@ -1535,6 +1538,7 @@ put_link_number(struct html_context *html_context)
 	format.target = ft;
 	format.image = fi;
 	format.form = ff;
+    format.style = old_style;
 }
 
 #define assert_link_variable(old, new) \

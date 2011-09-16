@@ -28,6 +28,7 @@ struct active_link_options {
 struct document_options_colors {
 	color_T link;
 	color_T vlink;
+	color_T linknumber;
 #ifdef CONFIG_BOOKMARKS
 	color_T bookmark_link;
 #endif

@@ -26,6 +26,7 @@ enum html_special_type;
 struct text_attrib_color {
 	color_T clink;
 	color_T vlink;
+	color_T linknumber;
 #ifdef CONFIG_BOOKMARKS
 	color_T bookmark_link;
 #endif

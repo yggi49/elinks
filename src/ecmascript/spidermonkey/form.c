@@ -767,10 +767,11 @@ form_elements_get_property(JSContext *ctx, JSObject *obj, jsid id, jsval *vp)
 	return JS_TRUE;
 }
 
+/* @form_elements_funcs{"item"} */
 static JSBool
 form_elements_item(JSContext *ctx, uintN argc, jsval *rval)
 {
-	jsval val;
+	jsval val = JSVAL_VOID;
 	JSObject *obj = JS_THIS_OBJECT(ctx, rval);
 	jsval *argv = JS_ARGV(ctx, rval);
 	JSBool ret = form_elements_item2(ctx, obj, argc, argv, &val);
@@ -779,7 +780,6 @@ form_elements_item(JSContext *ctx, uintN argc, jsval *rval)
 	return ret;
 }
 
-/* @form_elements_funcs{"item"} */
 static JSBool
 form_elements_item2(JSContext *ctx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
@@ -839,10 +839,11 @@ form_elements_item2(JSContext *ctx, JSObject *obj, uintN argc, jsval *argv, jsva
 	return JS_TRUE;
 }
 
+/* @form_elements_funcs{"namedItem"} */
 static JSBool
 form_elements_namedItem(JSContext *ctx, uintN argc, jsval *rval)
 {
-	jsval val;
+	jsval val = JSVAL_VOID;
 	JSObject *obj = JS_THIS_OBJECT(ctx, rval);
 	jsval *argv = JS_ARGV(ctx, rval);
 	JSBool ret = form_elements_namedItem2(ctx, obj, argc, argv, &val);
@@ -851,7 +852,6 @@ form_elements_namedItem(JSContext *ctx, uintN argc, jsval *rval)
 	return ret;
 }
 
-/* @form_elements_funcs{"namedItem"} */
 static JSBool
 form_elements_namedItem2(JSContext *ctx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
@@ -1467,10 +1467,11 @@ forms_get_property(JSContext *ctx, JSObject *obj, jsid id, jsval *vp)
 	return JS_TRUE;
 }
 
+/* @forms_funcs{"item"} */
 static JSBool
 forms_item(JSContext *ctx, uintN argc, jsval *rval)
 {
-	jsval val;
+	jsval val = JSVAL_VOID;
 	JSObject *obj = JS_THIS_OBJECT(ctx, rval);
 	jsval *argv = JS_ARGV(ctx, rval);
 	JSBool ret = forms_item2(ctx, obj, argc, argv, &val);
@@ -1479,7 +1480,6 @@ forms_item(JSContext *ctx, uintN argc, jsval *rval)
 	return ret;
 }
 
-/* @forms_funcs{"item"} */
 static JSBool
 forms_item2(JSContext *ctx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {

@@ -68,7 +68,7 @@ static struct auth_entry proxy_auth;
 static unsigned char *accept_charset = NULL;
 
 
-static struct option_info http_options[] = {
+static union option_info http_options[] = {
 	INIT_OPT_TREE("protocol", N_("HTTP"),
 		"http", 0,
 		N_("HTTP-specific options.")),
@@ -204,7 +204,8 @@ static struct option_info http_options[] = {
 		"pushing some lite version to them automagically.\n"
 		"\n"
 		"Use \" \" if you don't want any User-Agent header to be sent "
-		"at all.\n"
+		"at all. URI rewriting rules may still include parameters "
+		"that reveal you are using ELinks.\n"
 		"\n"
 		"%v in the string means ELinks version,\n"
 		"%s in the string means system identification,\n"
@@ -1050,48 +1051,10 @@ http_send_header(struct socket *socket)
 #undef POST_BUFFER_SIZE
 
 
-/* This function decompresses the data block given in @data (if it was
- * compressed), which is long @len bytes. The decompressed data block is given
- * back to the world as the return value and its length is stored into
- * @new_len. After this function returns, the caller will discard all the @len
- * input bytes, so this function must use all of them unless an error occurs.
- *
- * In this function, value of either http->chunk_remaining or http->length is
- * being changed (it depends on if chunked mode is used or not).
- *
- * Note that the function is still a little esotheric for me. Don't take it
- * lightly and don't mess with it without grave reason! If you dare to touch
- * this without testing the changes on slashdot, freshmeat and cvsweb
- * (including revision history), don't dare to send me any patches! ;) --pasky
- *
- * This function gotta die. */
 static unsigned char *
 decompress_data(struct connection *conn, unsigned char *data, int len,
 		int *new_len)
 {
-	struct http_connection_info *http = conn->info;
-	enum { NORMAL, FINISHING } state = NORMAL;
-	int *length_of_block;
-	unsigned char *output = NULL;
-
-	if (http->length == LEN_CHUNKED) {
-		if (http->chunk_remaining == CHUNK_ZERO_SIZE)
-			state = FINISHING;
-		length_of_block = &http->chunk_remaining;
-	} else {
-		length_of_block = &http->length;
-		if (!*length_of_block) {
-			/* Going to finish this decoding bussiness. */
-			state = FINISHING;
-		}
-	}
-
-	if (conn->content_encoding == ENCODING_NONE) {
-		*new_len = len;
-		if (*length_of_block > 0) *length_of_block -= len;
-		return data;
-	}
-
 	*new_len = 0; /* new_len must be zero if we would ever return NULL */
 
 	if (!conn->stream) {
@@ -1099,20 +1062,7 @@ decompress_data(struct connection *conn, unsigned char *data, int len,
 		if (!conn->stream) return NULL;
 	}
 
-	output = decode_encoded_buffer(conn->stream, conn->content_encoding, data, len, new_len);
-
-	if (*length_of_block > 0) {
-		*length_of_block -= len;
-	}
-	/* http->length is 0 at the end of block for all modes: keep-alive,
-	 * non-keep-alive and chunked */
-	if (!http->length) {
-		/* That's all, folks - let's finish this. */
-		state = FINISHING;
-	}
-
-	if (state == FINISHING) shutdown_connection_stream(conn);
-	return output;
+	return decode_encoded_buffer(conn->stream, conn->content_encoding, data, len, new_len);
 }
 
 static int
@@ -1237,7 +1187,6 @@ read_chunked_http_data(struct connection *conn, struct read_buffer *rb)
 			}
 
 		} else {
-			unsigned char *data;
 			int data_len;
 			int zero = (http->chunk_remaining == CHUNK_ZERO_SIZE);
 			int len = zero ? 0 : http->chunk_remaining;
@@ -1246,13 +1195,20 @@ read_chunked_http_data(struct connection *conn, struct read_buffer *rb)
 			int_upper_bound(&len, rb->length);
 			conn->received += len;
 
-			data = decompress_data(conn, rb->data, len, &data_len);
+			if (http->chunk_remaining > 0) http->chunk_remaining -= len;
+			if (conn->content_encoding == ENCODING_NONE) {
+				data_len = len;
+				if (add_fragment(conn->cached, conn->from, rb->data, len) == 1)
+					conn->tries = 0;
+			} else {
+				unsigned char *data = decompress_data(conn, rb->data, len, &data_len);
 
-			if (add_fragment(conn->cached, conn->from,
-					 data, data_len) == 1)
-				conn->tries = 0;
+				if (add_fragment(conn->cached, conn->from, data, data_len) == 1)
+					conn->tries = 0;
 
-			if (data && data != rb->data) mem_free(data);
+				mem_free_if(data);
+				if (zero || !http->length) shutdown_connection_stream(conn);
+			}
 
 			conn->from += data_len;
 			total_data_len += data_len;
@@ -1297,7 +1253,6 @@ static int
 read_normal_http_data(struct connection *conn, struct read_buffer *rb)
 {
 	struct http_connection_info *http = conn->info;
-	unsigned char *data;
 	int data_len;
 	int len = rb->length;
 
@@ -1307,13 +1262,21 @@ read_normal_http_data(struct connection *conn, struct read_buffer *rb)
 	}
 
 	conn->received += len;
+	if (http->length > 0) http->length -= len;
 
-	data = decompress_data(conn, rb->data, len, &data_len);
+	if (conn->content_encoding == ENCODING_NONE) {
+		data_len = len;
+		if (add_fragment(conn->cached, conn->from, rb->data, data_len) == 1)
+			conn->tries = 0;
+	} else {
+		unsigned char *data = decompress_data(conn, rb->data, len, &data_len);
 
-	if (add_fragment(conn->cached, conn->from, data, data_len) == 1)
-		conn->tries = 0;
+		if (add_fragment(conn->cached, conn->from, data, data_len) == 1)
+			conn->tries = 0;
 
-	if (data && data != rb->data) mem_free(data);
+		mem_free_if(data);
+		if (!http->length) shutdown_connection_stream(conn);
+	}
 
 	conn->from += data_len;
 
@@ -1887,12 +1850,13 @@ again:
 
 	d = parse_header(conn->cached->head, "Content-Encoding", NULL);
 	if (d) {
+#if defined(CONFIG_GZIP) || defined(CONFIG_BZIP2) || defined(CONFIG_LZMA)
 		unsigned char *extension = get_extension_from_uri(uri);
 		enum stream_encoding file_encoding;
 
 		file_encoding = extension ? guess_encoding(extension) : ENCODING_NONE;
 		mem_free_if(extension);
-
+#endif
 		/* If the content is encoded, we want to preserve the encoding
 		 * if it is implied by the extension, so that saving the URI
 		 * will leave the saved file with the correct encoding. */

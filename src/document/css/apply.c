@@ -104,9 +104,9 @@ css_apply_list_style(struct html_context *html_context,
 	element->parattr.list_number = (prop->value.list_style > CSS_LIST_ORDINAL);
 	switch (prop->value.list_style) {
 	case CSS_LIST_NONE: element->parattr.flags = P_NO_BULLET; break;
-	case CSS_LIST_DISC: element->parattr.flags = P_O; break;
+	case CSS_LIST_DISC: element->parattr.flags = P_DISC; break;
 	case CSS_LIST_CIRCLE: element->parattr.flags = P_O; break;
-	case CSS_LIST_SQUARE: element->parattr.flags = P_PLUS; break;
+	case CSS_LIST_SQUARE: element->parattr.flags = P_SQUARE; break;
 	case CSS_LIST_DECIMAL: element->parattr.flags = P_NUMBER; break;
 	case CSS_LIST_DECIMAL_LEADING_ZERO: element->parattr.flags = P_NUMBER; break;
 	case CSS_LIST_LOWER_ROMAN: element->parattr.flags = P_roman; break;
@@ -149,6 +149,7 @@ static const css_applier_T css_appliers[CSS_PT_LAST] = {
 	/* CSS_PT_FONT_STYLE */		css_apply_font_attribute,
 	/* CSS_PT_FONT_WEIGHT */	css_apply_font_attribute,
 	/* CSS_PT_LIST_STYLE */		css_apply_list_style,
+	/* CSS_PT_LIST_STYLE_TYPE */	css_apply_list_style,
 	/* CSS_PT_TEXT_ALIGN */		css_apply_text_align,
 	/* CSS_PT_TEXT_DECORATION */	css_apply_font_attribute,
 	/* CSS_PT_WHITE_SPACE */	css_apply_font_attribute,

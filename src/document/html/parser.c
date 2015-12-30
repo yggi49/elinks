@@ -307,8 +307,10 @@ check_head_for_refresh(struct html_context *html_context, unsigned char *head)
 
 		html_focusable(html_context, NULL);
 
-		put_link_line("Refresh: ", url, joined_url,
-			      html_context->options->framename, html_context);
+		if (get_opt_bool("document.browse.show_refresh_link", NULL)) {
+			put_link_line("Refresh: ", url, joined_url,
+				      html_context->options->framename, html_context);
+		}
 		html_context->special_f(html_context, SP_REFRESH, seconds, joined_url);
 	}
 
@@ -806,7 +808,7 @@ init_html_parser(struct uri *uri, struct document_options *options,
 	par_format.width = options->box.width;
 	par_format.list_level = par_format.list_number = 0;
 	par_format.dd_margin = options->margin;
-	par_format.flags = P_NONE;
+	par_format.flags = P_DISC;
 
 	par_format.color.background = options->default_style.color.background;
 

@@ -335,6 +335,10 @@ do_action(struct session *ses, enum main_action action_id, int verbose)
 			activate_bfu_technology(ses, -1);
 			break;
 
+		case ACT_MAIN_MOVE_CURRENT_TOP:
+			status = move_current_top(ses, doc_view);
+			break;
+
 		case ACT_MAIN_MOVE_CURSOR_UP:
 			status = move_cursor_up(ses, doc_view);
 			break;
@@ -353,6 +357,14 @@ do_action(struct session *ses, enum main_action action_id, int verbose)
 
 		case ACT_MAIN_MOVE_CURSOR_LINE_START:
 			status = move_cursor_line_start(ses, doc_view);
+			break;
+
+		case ACT_MAIN_MOVE_HALF_PAGE_DOWN:
+			status = move_half_page_down(ses, doc_view);
+			break;
+
+		case ACT_MAIN_MOVE_HALF_PAGE_UP:
+			status = move_half_page_up(ses, doc_view);
 			break;
 
 		case ACT_MAIN_MOVE_LINK_DOWN:
@@ -399,16 +411,8 @@ do_action(struct session *ses, enum main_action action_id, int verbose)
 			status = move_page_down(ses, doc_view);
 			break;
 
-		case ACT_MAIN_MOVE_HALF_PAGE_DOWN:
-			status = move_half_page_down(ses, doc_view);
-			break;
-
 		case ACT_MAIN_MOVE_PAGE_UP:
 			status = move_page_up(ses, doc_view);
-			break;
-
-		case ACT_MAIN_MOVE_HALF_PAGE_UP:
-			status = move_half_page_up(ses, doc_view);
 			break;
 
 		case ACT_MAIN_MOVE_DOCUMENT_START:

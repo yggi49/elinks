@@ -62,8 +62,13 @@ deflate_open(int window_size, struct stream_encoded *stream, int fd)
 	data->fdread = fd;
 	data->last_read = 0;
 	data->after_first_read = 0;
+	data->after_end = 0;
 
-	err = inflateInit2(&data->deflate_stream, window_size);
+	if (window_size > 0) {
+		err = inflateInit2(&data->deflate_stream, window_size);
+	} else {
+		err = inflateInit(&data->deflate_stream);
+	}
 	if (err != Z_OK) {
 		mem_free(data);
 		return -1;
@@ -73,14 +78,12 @@ deflate_open(int window_size, struct stream_encoded *stream, int fd)
 	return 0;
 }
 
-#if 0
 static int
 deflate_raw_open(struct stream_encoded *stream, int fd)
 {
 	/* raw DEFLATE with neither zlib nor gzip header */
 	return deflate_open(-MAX_WBITS, stream, fd);
 }
-#endif
 
 static int
 deflate_gzip_open(struct stream_encoded *stream, int fd)
@@ -198,10 +201,20 @@ deflate_decode_buffer(struct stream_encoded *st, int window_size, unsigned char 
 		buffer		 = new_buffer;
 		stream->next_out  = buffer + stream->total_out;
 		stream->avail_out = MAX_STR_LEN;
-
+restart2:
 		error = inflate(stream, Z_SYNC_FLUSH);
 		if (error == Z_STREAM_END) {
 			break;
+		}
+		if (error == Z_DATA_ERROR && !enc_data->after_first_read) {
+			(void)inflateEnd(stream);
+			error = inflateInit2(stream, -MAX_WBITS);
+			if (error == Z_OK) {
+				enc_data->after_first_read = 1;
+				stream->next_in = data;
+				stream->avail_in = len;
+				goto restart2; 
+			}
 		}
 	} while (error == Z_OK && stream->avail_in > 0);
 
@@ -215,7 +228,7 @@ deflate_decode_buffer(struct stream_encoded *st, int window_size, unsigned char 
 		*new_len = stream->total_out;
 		return buffer;
 	} else {
-		if (buffer) mem_free(buffer);
+		mem_free_if(buffer);
 		return NULL;
 	}
 }
@@ -256,7 +269,7 @@ static const unsigned char *const deflate_extensions[] = { NULL };
 const struct decoding_backend deflate_decoding_backend = {
 	"deflate",
 	deflate_extensions,
-	deflate_gzip_open,
+	deflate_raw_open,
 	deflate_read,
 	deflate_raw_decode_buffer,
 	deflate_close,

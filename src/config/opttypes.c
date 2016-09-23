@@ -345,12 +345,12 @@ str_wr(struct option *o, struct string *s)
 }
 
 static void
-str_dup(struct option *opt, struct option *template, int flags)
+str_dup(struct option *opt, struct option *template_, int flags)
 {
-	unsigned char *new = mem_alloc(MAX_STR_LEN);
+	unsigned char *new_ = mem_alloc(MAX_STR_LEN);
 
-	if (new) safe_strncpy(new, template->value.string, MAX_STR_LEN);
-	opt->value.string = new;
+	if (new_) safe_strncpy(new_, template_->value.string, MAX_STR_LEN);
+	opt->value.string = new_;
 }
 
 
@@ -441,14 +441,14 @@ color_wr(struct option *opt, struct string *str)
 }
 
 static void
-tree_dup(struct option *opt, struct option *template, int flags)
+tree_dup(struct option *opt, struct option *template_, int flags)
 {
-	LIST_OF(struct option) *new = init_options_tree();
-	LIST_OF(struct option) *tree = template->value.tree;
+	LIST_OF(struct option) *new_ = init_options_tree();
+	LIST_OF(struct option) *tree = template_->value.tree;
 	struct option *option;
 
-	if (!new) return;
-	opt->value.tree = new;
+	if (!new_) return;
+	opt->value.tree = new_;
 
 	if (flags & CO_SHALLOW) return;
 
@@ -457,7 +457,7 @@ tree_dup(struct option *opt, struct option *template, int flags)
 
 		if (!new_opt) continue;
 		object_nolock(new_opt, "option");
-		add_to_list_end(*new, new_opt);
+		add_to_list_end(*new_, new_opt);
 		object_lock(new_opt);
 		new_opt->root = opt;
 

@@ -203,7 +203,7 @@ get_subject_from_query(unsigned char *query)
 	unsigned char *subject;
 
 	if (strncmp(query, "subject=", 8)) {
-		subject = strstr(query, "&subject=");
+		subject = strstr((const char *)query, "&subject=");
 		if (!subject) return NULL;
 		subject += 9;
 	} else {
@@ -234,7 +234,7 @@ save_form_data_to_file(struct uri *uri)
 	if (!uri->post) return filename;
 
 	/* Jump the content type */
-	formdata = strchr(uri->post, '\n');
+	formdata = strchr((const char *)uri->post, '\n');
 	formdata = formdata ? formdata + 1 : uri->post;
 	len = strlen(formdata);
 	if (len == 0) return filename;
@@ -299,9 +299,9 @@ user_protocol_handler(struct session *ses, struct uri *uri)
 	prog = subst_cmd(prog, uri, subj, filename);
 	mem_free_if(subj);
 	if (prog) {
-		unsigned char *delete = empty_string_or_(filename);
+		unsigned char *delete_ = empty_string_or_(filename);
 
-		exec_on_terminal(ses->tab->term, prog, delete, TERM_EXEC_FG);
+		exec_on_terminal(ses->tab->term, prog, delete_, TERM_EXEC_FG);
 		mem_free(prog);
 
 	} else if (filename) {

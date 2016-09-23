@@ -470,7 +470,7 @@ check_http_server_bugs(struct uri *uri, struct http_connection_info *http,
 		return 0;
 
 	for (s = buggy_servers; *s; s++) {
-		if (strstr(server, *s)) {
+		if (strstr((const char *)server, *s)) {
 			add_blacklist_entry(uri, SERVER_BLACKLIST_HTTP10);
 			break;
 		}
@@ -998,7 +998,7 @@ http_send_header(struct socket *socket)
 		/* We search for first '\n' in uri->post to get content type
 		 * as set by get_form_uri(). This '\n' is dropped if any
 		 * and replaced by correct '\r\n' termination here. */
-		unsigned char *postend = strchr(uri->post, '\n');
+		unsigned char *postend = strchr((const char *)uri->post, '\n');
 		struct connection_state error;
 
 		if (postend) {
@@ -1275,7 +1275,15 @@ read_normal_http_data(struct connection *conn, struct read_buffer *rb)
 		if (add_fragment(conn->cached, conn->from, rb->data, data_len) == 1)
 			conn->tries = 0;
 	} else {
-		unsigned char *data = decompress_data(conn, rb->data, len, &data_len);
+		unsigned char *data;
+finish:
+		data = decompress_data(conn, rb->data, len, &data_len);
+
+		if (!data && !http->length && len) {
+			kill_buffer_data(rb, len);
+			len = 0;
+			goto finish;
+		}
 
 		if (add_fragment(conn->cached, conn->from, data, data_len) == 1)
 			conn->tries = 0;
@@ -1594,7 +1602,7 @@ again:
 		}
 
 		if ((d = parse_header(cached->head, "Pragma", NULL))) {
-			if (strstr(d, "no-cache")) {
+			if (strstr((const char *)d, "no-cache")) {
 				cached->cache_mode = CACHE_MODE_NEVER;
 				cached->expire = 0;
 			}
@@ -1603,12 +1611,12 @@ again:
 
 		if (cached->cache_mode != CACHE_MODE_NEVER
 		    && (d = parse_header(cached->head, "Cache-Control", NULL))) {
-			if (strstr(d, "no-cache") || strstr(d, "must-revalidate")) {
+			if (strstr((const char *)d, "no-cache") || strstr((const char *)d, "must-revalidate")) {
 				cached->cache_mode = CACHE_MODE_NEVER;
 				cached->expire = 0;
 
 			} else  {
-				unsigned char *pos = strstr(d, "max-age=");
+				unsigned char *pos = strstr((const char *)d, "max-age=");
 
 				assert(cached->cache_mode != CACHE_MODE_NEVER);
 

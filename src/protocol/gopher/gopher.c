@@ -387,7 +387,7 @@ encode_selector_string(struct string *buffer, unsigned char *selector)
 
 	/* Rather hackishly only convert slashes if there are
 	 * two successive ones. */
-	while ((slashes = strstr(selector, "//"))) {
+	while ((slashes = strstr((const char *)selector, "//"))) {
 		*slashes = 0;
 		encode_uri_string(buffer, selector, -1, 0);
 		encode_uri_string(buffer, "//", 2, 1);
@@ -414,7 +414,7 @@ add_gopher_menu_line(struct string *buffer, unsigned char *line)
 	}
 
 	if (*name) {
-		selector = strchr(name, ASCII_TAB);
+		selector = strchr((const char *)name, ASCII_TAB);
 		if (selector) {
 			/* Terminate name */
 			*selector++ = '\0';
@@ -428,13 +428,13 @@ add_gopher_menu_line(struct string *buffer, unsigned char *line)
 				entity = *selector;
 		}
 
-		host = selector ? strchr(selector, ASCII_TAB) : NULL;
+		host = selector ? strchr((const char *)selector, ASCII_TAB) : NULL;
 		if (host) {
 			/* Terminate selector */
 			*host++ = '\0';
 		}
 
-		port = host ? strchr(host, ASCII_TAB) : NULL;
+		port = host ? strchr((const char *)host, ASCII_TAB) : NULL;
 		if (port) {
 			unsigned char *end;
 			int portno;
@@ -526,6 +526,10 @@ add_gopher_menu_line(struct string *buffer, unsigned char *line)
 		} else {
 			add_format_to_string(&address, "gopher://%s/%c",
 				host, entity);
+
+			/* Ensure we put a slash after entity type */
+			if (selector[0] != '/')
+				add_char_to_string(&address, '/');
 
 			/* Encode selector string */
 			encode_selector_string(&address, selector);

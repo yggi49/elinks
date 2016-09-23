@@ -205,7 +205,7 @@ file_read_line(unsigned char *line, size_t *size, FILE *file, int *lineno)
 	}
 
 	while (fgets(line + offset, *size - offset, file)) {
-		unsigned char *linepos = strchr(line + offset, '\n');
+		unsigned char *linepos = strchr((const char *)(line + offset), '\n');
 
 		if (!linepos) {
 			/* Test if the line buffer should be increase because
@@ -271,12 +271,12 @@ file_read_line(unsigned char *line, size_t *size, FILE *file, int *lineno)
  * set appropriately before calling mkstemp.
  */
 int
-safe_mkstemp(unsigned char *template)
+safe_mkstemp(unsigned char *template_)
 {
 #ifndef CONFIG_OS_WIN32
 	mode_t saved_mask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
 #endif
-	int fd = mkstemp(template);
+	int fd = mkstemp(template_);
 #ifndef CONFIG_OS_WIN32
 	umask(saved_mask);
 #endif

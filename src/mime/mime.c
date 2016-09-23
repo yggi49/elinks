@@ -65,7 +65,7 @@ get_content_filename(struct uri *uri, struct cache_entry *cached)
 	pos = parse_header(cached->head, "Content-Disposition", NULL);
 	if (!pos) return NULL;
 
-	parse_header_param(pos, "filename", &filename);
+	parse_header_param(pos, "filename", &filename, 1);
 	mem_free(pos);
 	if (!filename) return NULL;
 
@@ -104,7 +104,7 @@ static inline unsigned char *
 check_extension_type(unsigned char *extension)
 {
 	/* Trim the extension so only last .<extension> is used. */
-	unsigned char *trimmed = strrchr(extension, '.');
+	unsigned char *trimmed = strrchr((const char *)extension, '.');
 	struct mime_handler *handler;
 	unsigned char *content_type;
 
@@ -133,7 +133,7 @@ check_encoding_type(unsigned char *extension)
 {
 	enum stream_encoding encoding = guess_encoding(extension);
 	const unsigned char *const *extension_list;
-	unsigned char *last_extension = strrchr(extension, '.');
+	unsigned char *last_extension = strrchr((const char *)extension, '.');
 
 	if (encoding == ENCODING_NONE || !last_extension)
 		return NULL;
@@ -198,7 +198,7 @@ get_cache_header_content_type(struct cache_entry *cached)
 
 	ctype = parse_header(cached->head, "Content-Type", NULL);
 	if (ctype) {
-		unsigned char *end = strchr(ctype, ';');
+		unsigned char *end = strchr((const char *)ctype, ';');
 		int ctypelen;
 
 		if (end) *end = '\0';
@@ -250,7 +250,7 @@ get_fragment_content_type(struct cache_entry *cached)
 	if (!sample)
 		return NULL;
 
-	if (c_strcasestr(sample, "<html>"))
+	if (c_strcasestr((const char *)sample, "<html>"))
 		ctype = stracpy("text/html");
 
 	mem_free(sample);

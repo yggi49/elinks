@@ -16,6 +16,7 @@
 #include "dialogs/status.h"
 #include "document/document.h"
 #include "document/forms.h"
+#include "document/html/renderer.h"
 #include "document/options.h"
 #include "document/view.h"
 #include "ecmascript/ecmascript.h"
@@ -67,7 +68,7 @@ current_link_evhook(struct document_view *doc_view, enum script_event_hook_type 
 
 		if (evhook->type != type) continue;
 		ret = evhook->src;
-		while ((ret = strstr(ret, "return ")))
+		while ((ret = strstr((const char *)ret, "return ")))
 			while (*ret != ' ') *ret++ = ' ';
 		{
 			struct string src = INIT_STRING(evhook->src, strlen(evhook->src));
@@ -168,12 +169,12 @@ static inline struct screen_char *
 init_link_drawing(struct document_view *doc_view, struct link *link, int invert)
 {
 	struct document_options *doc_opts;
-	static struct screen_char template;
+	static struct screen_char template_;
 	enum color_flags color_flags;
 	enum color_mode color_mode;
 	struct color_pair colors;
 
-	template.attr = SCREEN_ATTR_STANDOUT;
+	template_.attr = SCREEN_ATTR_STANDOUT;
 
 	doc_opts = &doc_view->document->options;
 
@@ -181,10 +182,10 @@ init_link_drawing(struct document_view *doc_view, struct link *link, int invert)
 	color_mode = doc_opts->color_mode;
 
 	if (doc_opts->active_link.underline)
-		template.attr |= SCREEN_ATTR_UNDERLINE;
+		template_.attr |= SCREEN_ATTR_UNDERLINE;
 
 	if (doc_opts->active_link.bold)
-		template.attr |= SCREEN_ATTR_BOLD;
+		template_.attr |= SCREEN_ATTR_BOLD;
 
 	if (doc_opts->active_link.enable_color) {
 		colors.foreground = doc_opts->active_link.color.foreground;
@@ -217,9 +218,9 @@ init_link_drawing(struct document_view *doc_view, struct link *link, int invert)
 		}
 	}
 
-	set_term_color(&template, &colors, color_flags, color_mode);
+	set_term_color(&template_, &colors, color_flags, color_mode);
 
-	return &template;
+	return &template_;
 }
 
 /** Give the current link the appropriate colour and attributes. */
@@ -227,7 +228,7 @@ void
 draw_current_link(struct session *ses, struct document_view *doc_view)
 {
 	struct terminal *term = ses->tab->term;
-	struct screen_char *template;
+	struct screen_char *template_;
 	struct link *link;
 	int cursor_offset;
 	int xpos, ypos;
@@ -243,8 +244,8 @@ draw_current_link(struct session *ses, struct document_view *doc_view)
 	if (!link) return;
 
 	i = !link_is_textinput(link) || ses->insert_mode == INSERT_MODE_OFF;
-	template = init_link_drawing(doc_view, link, i);
-	if (!template) return;
+	template_ = init_link_drawing(doc_view, link, i);
+	if (!template_) return;
 
 	xpos = doc_view->box.x - doc_view->vs->x;
 	ypos = doc_view->box.y - doc_view->vs->y;
@@ -271,14 +272,14 @@ draw_current_link(struct session *ses, struct document_view *doc_view)
 
 		if (i == cursor_offset) {
 			int blockable = (!link_is_textinput(link)
-					 && co->c.color != template->c.color);
+					 && co->c.color != template_->c.color);
 
 			set_cursor(term, x, y, blockable);
 			set_window_ptr(ses->tab, x, y);
 		}
 
- 		template->data = co->data;
- 		copy_screen_chars(co, template, 1);
+ 		template_->data = co->data;
+ 		copy_screen_chars(co, template_, 1);
 		set_screen_dirty(term->screen, y, y);
 	}
 
@@ -1214,6 +1215,23 @@ goto_link_number(struct session *ses, unsigned char *num)
 	assert(doc_view);
 	if_assert_failed return;
 	goto_link_number_do(ses, doc_view, atoi(num) - 1);
+}
+
+void
+goto_link_symbol(struct session *ses, unsigned char *sym)
+{
+	char *symkey = get_opt_str("document.browse.links.label_key", ses);
+	struct document_view *doc_view;
+	int num;
+	int base = strlen(symkey);
+
+	assert(ses && sym);
+	if_assert_failed return;
+	doc_view = current_frame(ses);
+	assert(doc_view);
+	if_assert_failed return;
+	num = qwerty2dec(sym, symkey, base);
+	goto_link_number_do(ses, doc_view, num - 1);
 }
 
 /** See if this document is interested in the key user pressed. */

@@ -44,7 +44,6 @@
 #include "viewer/text/search.h"
 #include "viewer/text/view.h"
 
-
 static void
 goto_url_action(struct session *ses,
 		unsigned char *(*get_url)(struct session *, unsigned char *, size_t))
@@ -275,6 +274,10 @@ do_action(struct session *ses, enum main_action action_id, int verbose)
 
 		case ACT_MAIN_KILL_BACKGROUNDED_CONNECTIONS:
 			abort_background_connections();
+			break;
+
+		case ACT_MAIN_LINK_DIALOG:
+			open_link_dialog(ses);
 			break;
 
 		case ACT_MAIN_LINK_DOWNLOAD:

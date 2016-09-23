@@ -314,9 +314,9 @@ globhist_simple_search(unsigned char *search_url, unsigned char *search_title)
 	foreach (history_item, global_history.entries) {
 		/* Make matching entries visible, hide others. */
 		if ((*search_title
-		     && strcasestr(history_item->title, search_title))
+		     && strcasestr((const char *)history_item->title, (const char *)search_title))
 		    || (*search_url
-			&& c_strcasestr(history_item->url, search_url))) {
+			&& c_strcasestr((const char *)history_item->url, (const char *)search_url))) {
 			history_item->box_item->visible = 1;
 		} else {
 			history_item->box_item->visible = 0;
@@ -353,15 +353,15 @@ read_global_history(void)
 	while (fgets(in_buffer, sizeof(in_buffer), f)) {
 		unsigned char *url, *last_visit, *eol;
 
-		url = strchr(title, '\t');
+		url = strchr((const char *)title, '\t');
 		if (!url) continue;
 		*url++ = '\0'; /* Now url points to the character after \t. */
 
-		last_visit = strchr(url, '\t');
+		last_visit = strchr((const char *)url, '\t');
 		if (!last_visit) continue;
 		*last_visit++ = '\0';
 
-		eol = strchr(last_visit, '\n');
+		eol = strchr((const char *)last_visit, '\n');
 		if (!eol) continue;
 		*eol = '\0'; /* Drop ending '\n'. */
 

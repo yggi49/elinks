@@ -539,7 +539,7 @@ html_embed(struct html_context *html_context, unsigned char *a,
 
 	/* If there is no extension we want to get the default mime/type
 	 * anyway? */
-	extension = strrchr(object_src, '.');
+	extension = strrchr((const char *)object_src, '.');
 	if (!extension) extension = object_src;
 
 	type = get_extension_content_type(extension);
@@ -689,7 +689,7 @@ struct hlink {
 	unsigned char *charset;
 	unsigned char *target;
 	unsigned char *id;
-	unsigned char *class;
+	unsigned char *class_;
 	unsigned char *dir;
 */
 };
@@ -805,21 +805,21 @@ html_link_parse(struct html_context *html_context, unsigned char *a,
 			return 1;
 		}
 
-	if (c_strcasestr(link->name, "icon") ||
-	   (link->content_type && c_strcasestr(link->content_type, "icon"))) {
+	if (c_strcasestr((const char *)link->name, "icon") ||
+	   (link->content_type && c_strcasestr((const char *)link->content_type, "icon"))) {
 		link->type = LT_ICON;
 
-	} else if (c_strcasestr(link->name, "alternate")) {
+	} else if (c_strcasestr((const char *)link->name, "alternate")) {
 		link->type = LT_ALTERNATE;
 		if (link->lang)
 			link->type = LT_ALTERNATE_LANG;
-		else if (c_strcasestr(link->name, "stylesheet") ||
-			 (link->content_type && c_strcasestr(link->content_type, "css")))
+		else if (c_strcasestr((const char *)link->name, "stylesheet") ||
+			 (link->content_type && c_strcasestr((const char *)link->content_type, "css")))
 			link->type = LT_ALTERNATE_STYLESHEET;
 		else if (link->media)
 			link->type = LT_ALTERNATE_MEDIA;
 
-	} else if (link->content_type && c_strcasestr(link->content_type, "css")) {
+	} else if (link->content_type && c_strcasestr((const char *)link->content_type, "css")) {
 		link->type = LT_STYLESHEET;
 	}
 

@@ -275,7 +275,7 @@ get_frame_char(struct html_context *html_context, struct part *part,
 	       int x, int y, unsigned char data,
                color_T bgcolor, color_T fgcolor)
 {
-	struct screen_char *template;
+	struct screen_char *template_;
 
 	assert(html_context);
 	if_assert_failed return NULL;
@@ -289,14 +289,14 @@ get_frame_char(struct html_context *html_context, struct part *part,
 	assert(part->document->data);
 	if_assert_failed return NULL;
 
-	template = &POS(x, y);
-	template->data = data;
-	template->attr = SCREEN_ATTR_FRAME;
-	set_screen_char_color(template, bgcolor, fgcolor,
+	template_ = &POS(x, y);
+	template_->data = data;
+	template_->attr = SCREEN_ATTR_FRAME;
+	set_screen_char_color(template_, bgcolor, fgcolor,
 			      part->document->options.color_flags,
 			      part->document->options.color_mode);
 
-	return template;
+	return template_;
 }
 
 void
@@ -304,17 +304,17 @@ draw_frame_hchars(struct part *part, int x, int y, int width,
 		  unsigned char data, color_T bgcolor, color_T fgcolor,
 		  struct html_context *html_context)
 {
-	struct screen_char *template;
+	struct screen_char *template_;
 
 	assert(width > 0);
 	if_assert_failed return;
 
-	template = get_frame_char(html_context, part, x + width - 1, y, data, bgcolor, fgcolor);
-	if (!template) return;
+	template_ = get_frame_char(html_context, part, x + width - 1, y, data, bgcolor, fgcolor);
+	if (!template_) return;
 
 	/* The template char is the last we need to draw so only decrease @width. */
 	for (width -= 1; width; width--, x++) {
-		copy_screen_chars(&POS(x, y), template, 1);
+		copy_screen_chars(&POS(x, y), template_, 1);
 	}
 }
 
@@ -323,10 +323,10 @@ draw_frame_vchars(struct part *part, int x, int y, int height,
 		  unsigned char data, color_T bgcolor, color_T fgcolor,
 		  struct html_context *html_context)
 {
-	struct screen_char *template = get_frame_char(html_context, part, x, y,
+	struct screen_char *template_ = get_frame_char(html_context, part, x, y,
 	                                              data, bgcolor, fgcolor);
 
-	if (!template) return;
+	if (!template_) return;
 
 	/* The template char is the first vertical char to be drawn. So
 	 * copy it to the rest. */
@@ -334,7 +334,7 @@ draw_frame_vchars(struct part *part, int x, int y, int height,
 	    	if (realloc_line(html_context, part->document, Y(y), X(x)) < 0)
 			return;
 
-		copy_screen_chars(&POS(x, y), template, 1);
+		copy_screen_chars(&POS(x, y), template_, 1);
 	}
 }
 
@@ -423,6 +423,50 @@ move_comb_x_y(struct part *part, int xf, int yf, int xt, int yt)
 }
 #else
 # define move_comb_x_y(part, xf, yf, xt, yt) ((void) 0)
+#endif
+
+#ifdef CONFIG_COMBINE
+static void
+set_comb_x_y(struct part *part, int x, int y)
+{
+	struct document *document = part->document;
+
+	document->comb_x = X(x);
+	document->comb_y = Y(y);
+	assert_comb_x_y_ok(document);
+	if_assert_failed discard_comb_x_y(document);
+}
+#else
+# define set_comb_x_y(part, x, y) ((void) 0)
+#endif
+
+#ifdef CONFIG_COMBINE
+static void
+put_combined(struct part *part, int x)
+{
+	struct document *document = part->document;
+
+	if (document->combi_length) {
+		if (document->comb_x != -1) {
+			unicode_val_T prev = get_combined(document->combi, document->combi_length + 1);
+
+			assert_comb_x_y_ok(document);
+			if_assert_failed prev = UCS_NO_CHAR;
+
+			/* Make sure the combined character is not considered as
+			 * a space. */
+			if (x)
+				part->spaces[x - 1] = 0;
+
+			if (prev != UCS_NO_CHAR)
+				document->data[document->comb_y]
+					.chars[document->comb_x].data = prev;
+		}
+		document->combi_length = 0;
+	}
+}
+#else
+# define put_combined(part, x) ((void) 0)
 #endif
 
 #ifdef CONFIG_UTF8
@@ -564,27 +608,36 @@ good_char:
 
 #ifdef CONFIG_COMBINE
 				if (wcwidth((wchar_t)data)) {
-					if (document->combi_length) {
-						if (document->comb_x != -1) {
-							unicode_val_T prev = get_combined(document->combi, document->combi_length + 1);
-
-							assert_comb_x_y_ok(document);
-							if_assert_failed prev = UCS_NO_CHAR;
-
-							if (prev != UCS_NO_CHAR)
-								document->data[document->comb_y]
-									.chars[document->comb_x].data = prev;
-						}
-						document->combi_length = 0;
-					}
+					put_combined(part, x);
 					document->combi[0] = data;
 				} else {
-					if (document->combi_length < (UCS_MAX_LENGTH_COMBINED - 1)) {
-						document->combi[++document->combi_length] = data;
+					if (part->cx == x) {
+						if (X(x)) {
+							/* Isolated combining 
+							 * character not on the 
+							 * first column: combine 
+							 * it with whatever is 
+							 * printed at its left. */
+							document->combi[0] = POS(x - 1, y).data;
+							set_comb_x_y(part, x - 1, y);
+						} else {
+							/* Isolated combining 
+							 * character on the
+							 * first column: use
+							 * UCS_NO_BREAK_SPACE as
+							 * the base character.
+							 * */
+							document->combi[0] = UCS_NO_BREAK_SPACE;
+							set_comb_x_y(part, x, y);
+							schar->data = UCS_SPACE;
+							copy_screen_chars(&POS(x++, y), schar, 1);
+						}
 					}
+					if (document->combi_length < (UCS_MAX_LENGTH_COMBINED - 1))
+						document->combi[++document->combi_length] = data;
 					continue;
 				}
-#endif
+#endif /* CONFIG_COMBINE */
 				part->spaces[x] = (data == UCS_SPACE);
 
 				if (unicode_to_cell(data) == 2) {
@@ -598,14 +651,14 @@ good_char:
 					part->char_width[x] = unicode_to_cell(data);
 					schar->data = (unicode_val_T)data;
 				}
-#ifdef CONFIG_COMBINE
-				document->comb_x = X(x);
-				document->comb_y = Y(y);
-				assert_comb_x_y_ok(document);
-				if_assert_failed discard_comb_x_y(document);
-#endif
+
+				set_comb_x_y(part, x, y);
+
 				copy_screen_chars(&POS(x++, y), schar, 1);
 			} /* while chars < end */
+
+			/* Display any trailing combining characters. */
+			put_combined(part, x);
 		} else { /* not UTF-8 */
 			for (; charslen > 0; charslen--, x++, chars++) {
 				part->char_width[x] = 1;
@@ -646,7 +699,12 @@ good_char:
 				unicode_val_T data;
 
 				data = utf8_to_unicode(&chars, end);
+#ifdef CONFIG_COMBINE
+				if (data == UCS_SOFT_HYPHEN
+				    || (data != UCS_NO_CHAR && wcwidth((wchar_t)data) == 0))
+#else
 				if (data == UCS_SOFT_HYPHEN)
+#endif
 					continue;
 
 				if (data == UCS_NO_BREAK_SPACE
@@ -1500,9 +1558,52 @@ put_chars_conv(struct html_context *html_context,
 		       NULL, (void (*)(void *, unsigned char *, int)) put_chars, html_context);
 }
 
+/*
+ * Converts a number in base 10 to a string in another base whose symbols are
+ * represented by key. I the trivial case, key="0123456789". A more homerow
+ * friendly key="gfdsahjkl;trewqyuiopvcxznm". Returns the length of link_sym.
+ */
+int
+dec2qwerty(int num, unsigned char *link_sym, const unsigned char *key, int base)
+{
+	int newlen, i, pow;
+
+	if (base < 2) return 0;
+
+	for (newlen = 1, pow = base; pow <= num; ++newlen, pow *= base);
+
+	link_sym[newlen] = '\0';
+	for (i = 1; i <= newlen; ++i) {
+		int key_index = num % base;
+		link_sym[newlen - i] = key[key_index];
+		num /= base;
+	}
+	return newlen;
+}
+
+/*
+ * Returns the value of link_sym in decimal according to key.
+ */
+int
+qwerty2dec(const unsigned char *link_sym, const unsigned char *key, int base)
+{
+	int z = 0;
+	int symlen = strlen(link_sym);
+	int i;
+	int pow;
+
+	for (i = 0, pow = 1; i < symlen; ++i, pow *= base) {
+		int j = 0;
+		while (key[j] != link_sym[symlen - 1 - i]) ++j;
+		z += j * pow;
+	}
+	return z;
+}
+
 static inline void
 put_link_number(struct html_context *html_context)
 {
+	char *symkey = get_opt_str("document.browse.links.label_key", NULL);
 	struct part *part = html_context->part;
 	unsigned char s[64];
 	unsigned char *fl = format.link;
@@ -1511,6 +1612,7 @@ put_link_number(struct html_context *html_context)
     struct text_style old_style = format.style;
 	struct form_control *ff = format.form;
 	int slen = 0;
+	int base = strlen(symkey);
 
 	format.link = format.target = format.image = NULL;
 	format.form = NULL;
@@ -1518,7 +1620,7 @@ put_link_number(struct html_context *html_context)
     format.style.color.foreground = format.color.linknumber;
 
 	s[slen++] = '[';
-	ulongcat(s, &slen, part->link_num, sizeof(s) - 3, 0);
+	slen += dec2qwerty(part->link_num, s + 1, symkey, base);
 	s[slen++] = ']';
 	s[slen] = '\0';
 

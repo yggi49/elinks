@@ -168,7 +168,7 @@ dom_rss_push_document(struct dom_stack *stack, struct dom_node *root, void *xxx)
 	struct dom_renderer *renderer = stack->current->data;
 	struct document *document = renderer->document;
 	struct rss_renderer *rss;
-	enum rss_style type;
+	int type;
 
 	struct css_stylesheet *css = &default_stylesheet;
 	{
@@ -197,7 +197,7 @@ dom_rss_push_document(struct dom_stack *stack, struct dom_node *root, void *xxx)
 	/* Initialize styles. */
 
 	for (type = 0; type < RSS_STYLES; type++) {
-		struct screen_char *template = &rss->styles[type];
+		struct screen_char *template_ = &rss->styles[type];
 		static const unsigned char *names[RSS_STYLES] =
 			{ "title", "author", "author-date-sep", "date" };
 		struct css_selector *selector = NULL;
@@ -205,7 +205,7 @@ dom_rss_push_document(struct dom_stack *stack, struct dom_node *root, void *xxx)
 		selector = find_css_selector(&css->selectors,
 					     CST_ELEMENT, CSR_ROOT,
 					     names[type], strlen(names[type]));
-		init_template_by_style(template, &document->options,
+		init_template_by_style(template_, &document->options,
 				       selector ? &selector->properties : NULL);
 	}
 

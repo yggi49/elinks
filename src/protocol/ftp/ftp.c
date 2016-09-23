@@ -831,7 +831,7 @@ static void
 send_it_line_by_line(struct connection *conn, struct string *cmd)
 {
 	struct ftp_connection_info *ftp = conn->info;
-	unsigned char *nl = strchr(ftp->cmd_buffer, '\n');
+	unsigned char *nl = strchr((const char *)ftp->cmd_buffer, '\n');
 
 	if (!nl) {
 		add_to_string(cmd, ftp->cmd_buffer);
@@ -892,7 +892,7 @@ get_filesize_from_RETR(unsigned char *data, int data_len, int *resume)
 		double size;
 
 		data[data_len - 1] = '\0';
-		kbytes = strstr(data, "kbytes");
+		kbytes = strstr((const char *)data, "kbytes");
 		data[data_len - 1] = tmp;
 		if (!kbytes) return -1;
 

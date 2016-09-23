@@ -70,8 +70,8 @@ parse_options_(int argc, unsigned char *argv[], struct option *opt,
 				/* Substitute '-' by '_'. This helps
 				 * compatibility with that very wicked browser
 				 * called 'lynx'. */
-				for (pos = strchr(oname, '_'); pos;
-				     pos = strchr(pos, '_'))
+				for (pos = strchr((const char *)oname, '_'); pos;
+				     pos = strchr((const char *)pos, '_'))
 					*pos = '-';
 				option = get_opt_rec(opt, oname);
 				oname--;
@@ -198,16 +198,18 @@ lookup_cmd(struct option *o, unsigned char ***argv, int *argc)
 #define skipback_whitespace(start, S) \
 	while ((start) < (S) && isspace((S)[-1])) (S)--;
 
+enum remote_method_enum {
+	REMOTE_METHOD_OPENURL,
+	REMOTE_METHOD_PING,
+	REMOTE_METHOD_XFEDOCOMMAND,
+	REMOTE_METHOD_ADDBOOKMARK,
+	REMOTE_METHOD_INFOBOX,
+	REMOTE_METHOD_NOT_SUPPORTED,
+};
+
 struct remote_method {
 	unsigned char *name;
-	enum {
-		REMOTE_METHOD_OPENURL,
-		REMOTE_METHOD_PING,
-		REMOTE_METHOD_XFEDOCOMMAND,
-		REMOTE_METHOD_ADDBOOKMARK,
-		REMOTE_METHOD_INFOBOX,
-		REMOTE_METHOD_NOT_SUPPORTED,
-	} type;
+	enum remote_method_enum type;
 };
 
 static unsigned char *
@@ -272,7 +274,7 @@ remote_cmd(struct option *o, unsigned char ***argv, int *argc)
 
 		if (*start == '"') {
 			end = ++start;
-			while ((end = strchr(end, '"'))) {
+			while ((end = strchr((const char *)end, '"'))) {
 				/* Treat "" inside quoted arg as ". */
 				if (end[1] != '"')
 					break;
@@ -300,7 +302,7 @@ remote_cmd(struct option *o, unsigned char ***argv, int *argc)
 			*start = 0;
 
 		} else {
-			end = strchr(start, ',');
+			end = strchr((const char *)start, ',');
 			if (!end) {
 				end = start + strlen(start);
 				arg = end;
@@ -336,10 +338,10 @@ remote_cmd(struct option *o, unsigned char ***argv, int *argc)
 		if (remote_argc == 2) {
 			unsigned char *where = remote_argv[1];
 
-			if (strstr(where, "new-window")) {
+			if (strstr((const char *)where, "new-window")) {
 				remote_session_flags |= SES_REMOTE_NEW_WINDOW;
 
-			} else if (strstr(where, "new-tab")) {
+			} else if (strstr((const char *)where, "new-tab")) {
 				remote_session_flags |= SES_REMOTE_NEW_TAB;
 
 			} else {
@@ -646,7 +648,7 @@ print_short_help(void)
 static unsigned char *
 printhelp_cmd(struct option *option, unsigned char ***argv, int *argc)
 {
-	unsigned char *lineend = strchr(full_static_version, '\n');
+	unsigned char *lineend = strchr((const char *)full_static_version, '\n');
 
 	if (lineend) *lineend = '\0';
 

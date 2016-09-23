@@ -352,7 +352,7 @@ set_cookie(struct uri *uri, unsigned char *str)
 
 	if (!parse_cookie_str(&cstr, str)) return;
 
-	switch (parse_header_param(str, "path", &path)) {
+	switch (parse_header_param(str, "path", &path, 0)) {
 		unsigned char *path_end;
 
 	case HEADER_PARAM_FOUND:
@@ -372,7 +372,7 @@ set_cookie(struct uri *uri, unsigned char *str)
 		if (!path)
 			return;
 
-		path_end = strrchr(path, '/');
+		path_end = strrchr((const char *)path, '/');
 		if (path_end)
 			path_end[1] = '\0';
 		break;
@@ -381,7 +381,7 @@ set_cookie(struct uri *uri, unsigned char *str)
 		return;
 	}
 
-	if (parse_header_param(str, "domain", &domain) == HEADER_PARAM_NOT_FOUND)
+	if (parse_header_param(str, "domain", &domain, 0) == HEADER_PARAM_NOT_FOUND)
 		domain = memacpy(uri->host, uri->hostlen);
 	if (domain && domain[0] == '.')
 		memmove(domain, domain + 1, strlen(domain));
@@ -424,7 +424,7 @@ set_cookie(struct uri *uri, unsigned char *str)
 		unsigned char *date;
 		time_t expires;
 
-		switch (parse_header_param(str, "expires", &date)) {
+		switch (parse_header_param(str, "expires", &date, 0)) {
 		case HEADER_PARAM_FOUND:
 			expires = parse_date(&date, NULL, 0, 1); /* Convert date to seconds. */
 
@@ -452,7 +452,7 @@ set_cookie(struct uri *uri, unsigned char *str)
 		}
 	}
 
-	cookie->secure = (parse_header_param(str, "secure", NULL)
+	cookie->secure = (parse_header_param(str, "secure", NULL, 0)
 	                  == HEADER_PARAM_FOUND);
 
 #ifdef DEBUG_COOKIES
@@ -719,7 +719,8 @@ load_cookies(void) {
 	while (fgets(in_buffer, 6 * MAX_STR_LEN, fp)) {
 		struct cookie *cookie;
 		unsigned char *p, *q = in_buffer;
-		enum { NAME = 0, VALUE, SERVER, PATH, DOMAIN, EXPIRES, SECURE, MEMBERS } member;
+		enum { NAME = 0, VALUE, SERVER, PATH, DOMAIN, EXPIRES, SECURE, MEMBERS };
+		int member;
 		struct {
 			unsigned char *pos;
 			int len;
@@ -728,10 +729,10 @@ load_cookies(void) {
 
 		/* First find all members. */
 		for (member = NAME; member < MEMBERS; member++, q = ++p) {
-			p = strchr(q, '\t');
+			p = strchr((const char *)q, '\t');
 			if (!p) {
 				if (member + 1 != MEMBERS) break; /* last field ? */
-				p = strchr(q, '\n');
+				p = strchr((const char *)q, '\n');
 				if (!p) break;
 			}
 

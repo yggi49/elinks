@@ -31,6 +31,7 @@
 #include "network/connection.h"
 #include "network/state.h"
 #include "osdep/newwin.h"
+#include "protocol/http/blacklist.h"
 #include "protocol/protocol.h"
 #include "protocol/uri.h"
 #ifdef CONFIG_SCRIPTING_SPIDERMONKEY
@@ -257,6 +258,32 @@ get_current_download(struct session *ses)
 	return download;
 }
 
+static void
+done_retry_connection_without_verification(void *data)
+{
+	struct delayed_open *deo = (struct delayed_open *)data;
+
+	if (deo) {
+		done_uri(deo->uri);
+		mem_free(deo);
+	}
+}
+
+static void
+retry_connection_without_verification(void *data)
+{
+	struct delayed_open *deo = (struct delayed_open *)data;
+
+	if (deo) {
+		if (deo->uri->hostlen) {
+			add_blacklist_entry(deo->uri, SERVER_BLACKLIST_NO_CERT_VERIFY);
+		}
+		goto_uri(deo->ses, deo->uri);
+		done_uri(deo->uri);
+		mem_free(deo);
+	}
+}
+
 void
 print_error_dialog(struct session *ses, struct connection_state state,
 		   struct uri *uri, enum connection_priority priority)
@@ -286,9 +313,27 @@ print_error_dialog(struct session *ses, struct connection_state state,
 
 	add_to_string(&msg, get_state_message(state, ses->tab->term));
 
-	info_box(ses->tab->term, MSGBOX_FREE_TEXT,
-		 N_("Error"), ALIGN_CENTER,
-		 msg.source);
+	if (!uri || uri->protocol != PROTOCOL_HTTPS) {
+		info_box(ses->tab->term, MSGBOX_FREE_TEXT,
+		N_("Error"), ALIGN_CENTER,
+		msg.source);
+	} else {
+		struct delayed_open *deo = mem_calloc(1, sizeof(*deo));
+
+		if (!deo) return;
+
+		add_to_string(&msg, "\n\n");
+		add_to_string(&msg, N_("Retry without verification?"));
+		deo->ses = ses;
+		deo->uri = get_uri_reference(uri);
+
+		msg_box(ses->tab->term, NULL, MSGBOX_FREE_TEXT,
+		N_("Error"), ALIGN_CENTER,
+		msg.source,
+		deo, 2,
+		MSG_BOX_BUTTON(N_("~Yes"), retry_connection_without_verification, B_ENTER),
+		MSG_BOX_BUTTON(N_("~No"), done_retry_connection_without_verification, B_ESC));
+	}
 
 	/* TODO: retry */
 }
@@ -1007,6 +1052,9 @@ init_remote_session(struct session *ses, enum remote_session_flags *remote_ptr,
 
 	} else if (remote & SES_REMOTE_PROMPT_URL) {
 		dialog_goto_url_open(ses);
+
+	} else if (remote & SES_REMOTE_RELOAD) {
+		reload(ses, CACHE_MODE_FORCE_RELOAD);
 	}
 }
 
